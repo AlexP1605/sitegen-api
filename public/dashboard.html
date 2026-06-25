@@ -648,8 +648,15 @@ function siteCard(site){
 }
 
 function filterSites(q){const f=S.sites.filter(s=>(s.business_name||'').toLowerCase().includes(q.toLowerCase())||(s.sector||'').toLowerCase().includes(q.toLowerCase()));document.getElementById('sitesGrid').innerHTML=f.map(siteCard).join('')||'<div class="empty" style="grid-column:1/-1"><p>Aucun résultat</p></div>'}
-function prevSite(id){const s=S.sites.find(x=>x.id===id);if(!s?.html){toast('Pas de HTML','error');return;}// Ouvre via iframe dans modal
-openPreviewModal(s);}
+function prevSite(id){
+  const s=S.sites.find(x=>x.id===id);
+  if(!s||!s.html){toast('Pas de HTML pour ce site','error');return;}
+  document.getElementById('modalTitle').textContent='Aperçu — '+(s.business_name||'Site');
+  document.getElementById('modalBody').innerHTML='<div style="width:100%;height:72vh;border-radius:8px;overflow:hidden;border:1px solid var(--border)"><iframe id="pvFrame" style="width:100%;height:100%;border:none" sandbox="allow-scripts allow-same-origin"></iframe></div>';
+  document.getElementById('modalFooter').innerHTML='<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-claude" onclick="dlSite(''+id+'',''+(s.business_name||'site').replace(/'/g,'')+'')">⬇ Télécharger</button>';
+  document.getElementById('modalOverlay').style.display='flex';
+  setTimeout(()=>{const f=document.getElementById('pvFrame');if(f){f.contentDocument.open();f.contentDocument.write(s.html);f.contentDocument.close();}},50);
+}
 function dlSite(id,name){const s=S.sites.find(x=>x.id===id);if(!s?.html)return;const b=new Blob([s.html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(name||'site').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.html';a.click();toast('HTML téléchargé','success')}
 function delSite(id){if(!confirm('Supprimer ce site ?'))return;S.sites=S.sites.filter(s=>s.id!==id);save();toast('Supprimé','success');if(S.page==='sites')renderSites();else renderGenerate()}
 function esc(s){return(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}
