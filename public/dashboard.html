@@ -108,6 +108,18 @@ select option{background:var(--bg3)}
 .prog-step.done .prog-dot{background:var(--success)}
 .prog-step.active .prog-dot{background:var(--orange);animation:pulse 1.2s infinite}
 .prog-bar2{height:3px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:10px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.overlay-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:28px;width:90%;max-width:420px}
+.overlay-title{font-weight:600;font-size:15px;margin-bottom:6px}
+.overlay-sub{font-size:13px;color:var(--text2);margin-bottom:18px}
+.overlay-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.ovs{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text3)}
+.ovs.done{color:var(--success)}.ovs.active{color:var(--text);font-weight:500}
+.ovsd{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0}
+.ovs.done .ovsd{background:var(--success)}
+.ovs.active .ovsd{background:var(--orange);animation:pulse 1.2s infinite}
+.overlay-bar{height:4px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.overlay-fill{height:100%;background:var(--orange);border-radius:4px;transition:width .5s}
 .prog-fill2{height:100%;background:var(--orange);border-radius:3px;transition:width .4s}
 .stitle{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
 .cbox{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);display:flex;flex-direction:column;height:360px}
@@ -204,7 +216,34 @@ select option{background:var(--bg3)}
   </div>
 </div>
 
+<div id="ovl" style="display:none" class="overlay">
+  <div class="overlay-box">
+    <div class="overlay-title" id="ovl-title">Traitement en cours…</div>
+    <div class="overlay-sub" id="ovl-sub">Veuillez patienter</div>
+    <div class="overlay-steps" id="ovl-steps"></div>
+    <div class="overlay-bar"><div class="overlay-fill" id="ovl-fill" style="width:0%"></div></div>
+  </div>
+</div>
 <script>
+// OVERLAY
+function showOverlay(title, sub) {
+  document.getElementById('ovl-title').textContent = title||'Traitement…';
+  document.getElementById('ovl-sub').textContent = sub||'';
+  document.getElementById('ovl-steps').innerHTML = '';
+  document.getElementById('ovl-fill').style.width = '0%';
+  document.getElementById('ovl').style.display = 'flex';
+}
+function hideOverlay() {
+  document.getElementById('ovl').style.display = 'none';
+}
+function setOvStep(steps, n) {
+  document.getElementById('ovl-fill').style.width = Math.round(n/steps.length*100)+'%';
+  document.getElementById('ovl-steps').innerHTML = steps.map(function(s,i){
+    return '<div class="ovs '+(i<n?'done':i===n?'active':'')+'">'
+      +'<div class="ovsd"></div>'+s+(i<n?' ✓':'')+'</div>';
+  }).join('');
+}
+
 // STATE
 const D = {
   url: localStorage.getItem('sg_url')||'',
@@ -381,7 +420,6 @@ function pGenerate() {
   }
   
   document.getElementById('pg').innerHTML = html;
-  loadCardPreviews();
 }
 
 function addU() { if(D.urls.length>=5){toast('Max 5 URLs','e');return;} D.urls.push(''); pGenerate(); }
@@ -478,33 +516,14 @@ async function doScrape() {
   } catch(err) { toast('Erreur: '+err.message,'e'); }
 }
 
-// IFRAME LOADER - loads site previews into cards
-function loadCardPreviews() {
-  setTimeout(function() {
-    document.querySelectorAll('iframe[data-site-id]').forEach(function(iframe) {
-      const id = iframe.getAttribute('data-site-id');
-      const s = D.sites.find(function(x){return x.id===id;});
-      if (s && s.html && !iframe.getAttribute('data-loaded')) {
-        iframe.setAttribute('data-loaded','1');
-        try {
-          iframe.contentDocument.open();
-          iframe.contentDocument.write(s.html);
-          iframe.contentDocument.close();
-        } catch(e) {}
-      }
-    });
-  }, 200);
-}
-
 // SITE CARD
 function kard(site) {
   const scol = {'draft':'var(--text3)','review':'var(--orange)','delivered':'var(--accent)','sold':'var(--success)'}[site.status||'draft'];
   const slbl = {'draft':'Brouillon','review':'En révision','delivered':'Livré','sold':'Vendu'}[site.status||'draft'];
   let h = '<div class="kard">';
-  h += '<div class="kprev" style="padding:0;overflow:hidden;cursor:pointer" onclick="prev(\''+site.id+'\')">'; 
-  h += '<div style="width:100%;height:100%;position:relative;overflow:hidden">';
-  h += '<iframe data-site-id="'+site.id+'" style="width:1280px;height:800px;border:none;transform:scale(0.195);transform-origin:top left;pointer-events:none" sandbox="allow-scripts"></iframe>';
-  h += '<div style="position:absolute;inset:0"></div>';
+  h += '<div class="kprev" style="padding:0;overflow:hidden;cursor:pointer;background:var(--bg3)" onclick="prev(\''+site.id+'\')">'; 
+  h += '<div id="kp-'+site.id+'" style="width:100%;height:100%;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">';
+  h += '<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px"><div style="font-size:20px;margin-bottom:4px">👁</div>Cliquer pour aperçu</div>';
   h += '</div>';
   h += '<div class="kdot" style="background:' + scol + '"></div></div>';
   h += '<div class="kinfo">';
@@ -574,7 +593,6 @@ function pSites() {
   }
   h += '</div>';
   document.getElementById('pg').innerHTML = h;
-  loadCardPreviews();
 }
 
 function filtS(q) {
@@ -829,17 +847,67 @@ function confSale(id) {
 }
 
 // SOURCE MANAGEMENT
-function addSource(id) {
+async function addSource(id) {
   const s = D.sites.find(function(x){return x.id===id;});
   if (!s) return;
-  const url = document.getElementById('newsrc').value.trim();
-  if (!url) { toast('Entre une URL','e'); return; }
-  s.source_urls = s.source_urls || s.urls || [];
+  const inp = document.getElementById('newsrc');
+  const url = inp ? inp.value.trim() : '';
+  if (!url) { toast('Entre une URL d\'abord','e'); return; }
+  try { new URL(url); } catch(e) { toast('URL invalide','e'); return; }
+  s.source_urls = s.source_urls || (s.urls ? s.urls.slice() : []);
+  if (s.source_urls.indexOf(url) !== -1) { toast('Cette URL est déjà ajoutée','e'); return; }
   s.source_urls.push(url);
   s.urls = s.source_urls;
-  sv(); toast('Source ajoutée','s');
-  document.getElementById('newsrc').value = '';
-  pEdit();
+  sv();
+  if (inp) inp.value = '';
+
+  const STEPS = [
+    '📸 Scraping ' + (url.includes('instagram')?'Instagram via Apify':'de la source') + '…',
+    '🔍 Extraction des données…',
+    '✨ Génération du site avec Claude…',
+    '💾 Sauvegarde…'
+  ];
+
+  showOverlay('Enrichissement du site', url.substring(0,50)+(url.length>50?'…':''));
+  setOvStep(STEPS, 0);
+
+  try {
+    // Scrape
+    await new Promise(function(r){setTimeout(r,300);}); setOvStep(STEPS,0);
+    const sr = await api('/api/scrape','POST',{urls:[url]});
+    setOvStep(STEPS,1);
+
+    // Merge data
+    const merged = Object.assign({},s.business_data||{},sr.data);
+    if (sr.data && sr.data.images && sr.data.images.length) {
+      merged.images = Array.from(new Set((sr.data.images||[]).concat(s.business_data&&s.business_data.images||[]))).slice(0,10);
+    }
+    s.business_data = merged;
+    sv();
+
+    // Regen
+    setOvStep(STEPS,2);
+    const res = await api('/api/generate','POST',{
+      business_data: merged,
+      sector: s.sector||'general',
+      options: s.options||[],
+      prompt: s.last_prompt||''
+    });
+
+    setOvStep(STEPS,3);
+    await new Promise(function(r){setTimeout(r,400);});
+
+    s.html = res.html;
+    sv();
+
+    hideOverlay();
+    toast('Site mis à jour avec les nouvelles données !','s');
+    pEdit();
+
+  } catch(err) {
+    hideOverlay();
+    toast('Erreur : '+err.message,'e');
+  }
 }
 
 async function scrapeAndEnrich(id) {
