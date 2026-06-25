@@ -43,6 +43,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg3);color:var(--text)}
 .btn-danger{background:rgba(224,80,96,.1);color:var(--danger);border:1px solid rgba(224,80,96,.2)}.btn-danger:hover{background:rgba(224,80,96,.2)}
 .btn-success{background:rgba(46,204,138,.1);color:var(--success);border:1px solid rgba(46,204,138,.2)}
+.btn-claude{background:#F0A030;color:#fff;border:none}.btn-claude:hover{background:#d4891f}
 .btn-sm{padding:5px 10px;font-size:12px}.btn-icon{width:32px;height:32px;padding:0;justify-content:center;border-radius:7px}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
@@ -62,12 +63,12 @@ textarea{resize:vertical}
 .url-item{display:flex;gap:8px;align-items:center}.url-item input{flex:1}
 .add-url{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--accent);cursor:pointer;padding:6px 0;background:none;border:none;font-family:inherit}
 /* Options checkboxes */
-.options-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-.option-card{padding:12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:10px}
+.options-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.option-card{padding:9px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
 .option-card:hover{border-color:var(--border2)}
-.option-card.selected{border-color:var(--accent);background:var(--accent-glow)}
-.option-card input[type=checkbox]{width:16px;height:16px;flex-shrink:0;margin-top:1px;accent-color:var(--accent)}
-.option-label{font-size:13px;font-weight:500}
+.option-card.selected{border-color:#F0A030;background:rgba(240,160,48,.08)}
+.option-card input[type=checkbox]{width:14px;height:14px;flex-shrink:0;accent-color:#F0A030}
+.option-label{font-size:12px;font-weight:500}
 .option-desc{font-size:11px;color:var(--text3);margin-top:2px}
 /* Progress */
 .progress-bar{height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;margin:12px 0}
@@ -229,6 +230,7 @@ const S={
   urls:[''],
   sector:'',
   options:[],
+  prompt:'',
   editSite:null,
 };
 
@@ -284,30 +286,30 @@ function renderGenerate(){
     <div class="form-title">✨ Nouveau site</div>
     <div class="form-row">
       <div>
-        <label style="display:block;margin-bottom:6px">Secteur / Thème du site</label>
-        <input type="text" id="sectorInput" placeholder="ex: Institut beauté, Plombier urgent, Coach sportif, Boulangerie artisanale..." value="${S.sector}" oninput="S.sector=this.value">
+        <label style="display:block;margin-bottom:6px">URLs sources <span style="color:var(--text3);font-weight:400">(Instagram, TikTok, site, Google Maps…)</span></label>
+        <div class="url-list" id="urlList">${S.urls.map((u,i)=>`<div class="url-item"><input type="url" placeholder="https://instagram.com/mon_client" value="${u}" oninput="S.urls[${i}]=this.value">${i>0?`<button class="btn btn-ghost btn-icon btn-sm" onclick="rmUrl(${i})">✕</button>`:''}</div>`).join('')}</div>
+        <button class="add-url" onclick="addUrl()">+ Ajouter une URL</button>
       </div>
       <div>
         <label style="display:block;margin-bottom:6px">Nom de domaine (optionnel)</label>
-        <input type="text" id="domainInput" placeholder="ex: mon-client.fr" value="${S.domain||''}">
+        <input type="text" id="domainInput" placeholder="ex: mon-client.fr" value="${S.domain||''}" style="margin-bottom:10px">
       </div>
     </div>
     <div style="margin-bottom:16px">
-      <label style="display:block;margin-bottom:8px">URLs sources <span style="color:var(--text3);font-weight:400">(Instagram, TikTok, site, Google Maps…)</span></label>
-      <div class="url-list" id="urlList">${S.urls.map((u,i)=>`<div class="url-item"><input type="url" placeholder="https://instagram.com/mon_client" value="${u}" oninput="S.urls[${i}]=this.value">${i>0?`<button class="btn btn-ghost btn-icon btn-sm" onclick="rmUrl(${i})">✕</button>`:''}</div>`).join('')}</div>
-      <button class="add-url" onclick="addUrl()">+ Ajouter une URL</button>
+      <label style="display:block;margin-bottom:6px">✍️ Instructions pour Claude <span style="color:var(--text3);font-weight:400">(décris le site, le style, ce qu'il faut inclure…)</span></label>
+      <textarea id="promptInput" rows="3" placeholder="Ex: Institut de beauté haut de gamme à Paris, style minimaliste rose et doré. La cliente s'appelle Sophie. Mets en avant les soins visage et les extensions de cils. Ton élégant et féminin." oninput="S.prompt=this.value" style="min-height:80px">${S.prompt||''}</textarea>
     </div>
     <div style="margin-bottom:16px">
-      <label style="display:block;margin-bottom:8px">Options du site</label>
+      <label style="display:block;margin-bottom:8px">Fonctionnalités à intégrer</label>
       <div class="options-grid">${SITE_OPTIONS.map(o=>`
         <div class="option-card ${S.options.includes(o.id)?'selected':''}" onclick="toggleOption('${o.id}',this)">
           <input type="checkbox" ${S.options.includes(o.id)?'checked':''} onclick="event.stopPropagation()">
-          <div><div class="option-label">${o.icon} ${o.label}</div><div class="option-desc">${o.desc}</div></div>
+          <div><div class="option-label">${o.icon} ${o.label}</div></div>
         </div>`).join('')}
       </div>
     </div>
     <div style="display:flex;gap:12px;align-items:center;margin-top:16px">
-      <button class="btn btn-primary" id="genBtn" onclick="doGenerate()">⚡ Générer le site</button>
+      <button class="btn btn-claude" id="genBtn" onclick="doGenerate()">⚡ Générer avec Claude</button>
       <button class="btn btn-ghost" onclick="doScrapeOnly()">Scraper uniquement</button>
     </div>
     <div id="genProgress" style="display:none;margin-top:16px">
@@ -343,7 +345,7 @@ async function doGenerate(){
   try{
     await new Promise(r=>setTimeout(r,400));setStep(1);
     await new Promise(r=>setTimeout(r,500));setStep(2);
-    const res=await api('/api/generate','POST',{urls:urls.length?urls:undefined,sector:S.sector||'general',options:S.options,domain});
+    const res=await api('/api/generate','POST',{urls:urls.length?urls:undefined,sector:S.sector||'general',options:S.options,domain,prompt:S.prompt});
     setStep(3);await new Promise(r=>setTimeout(r,400));setStep(4);
     const site={id:res.site_id,business_name:res.business_data?.business_name||'Nouveau site',sector:S.sector||'general',urls,domain,options:S.options,business_data:res.business_data,html:res.html,created_at:new Date().toISOString(),status:'draft'};
     S.sites.unshift(site);save();
@@ -421,8 +423,8 @@ function renderEdit(){
           </div>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary btn-sm" onclick="saveEditInfo('${site.id}')">Sauvegarder</button>
-          <button class="btn btn-ghost btn-sm" onclick="regenSite('${site.id}')">🔄 Regénérer</button>
+          <button class="btn btn-claude btn-sm" onclick="saveEditInfo('${site.id}')">Sauvegarder</button>
+          <button class="btn btn-claude btn-sm" onclick="regenSite('${site.id}')">🔄 Regénérer avec Claude</button>
         </div>
       </div>
       <!-- Domain instructions -->
@@ -620,7 +622,7 @@ function siteCard(site){
 }
 
 function filterSites(q){const f=S.sites.filter(s=>(s.business_name||'').toLowerCase().includes(q.toLowerCase())||(s.sector||'').toLowerCase().includes(q.toLowerCase()));document.getElementById('sitesGrid').innerHTML=f.map(siteCard).join('')||'<div class="empty" style="grid-column:1/-1"><p>Aucun résultat</p></div>'}
-function prevSite(id){const s=S.sites.find(x=>x.id===id);if(!s?.html)return;const b=new Blob([s.html],{type:'text/html'});window.open(URL.createObjectURL(b),'_blank');toast('Aperçu ouvert','info')}
+function prevSite(id){const s=S.sites.find(x=>x.id===id);if(!s?.html){toast('Pas de HTML disponible','error');return;}const b=new Blob([s.html],{type:'text/html'});const url=URL.createObjectURL(b);const w=window.open(url,'_blank');if(!w){toast('Autorise les popups pour voir l\'aperçu','error');}else{toast('Aperçu ouvert','info');}}
 function dlSite(id,name){const s=S.sites.find(x=>x.id===id);if(!s?.html)return;const b=new Blob([s.html],{type:'text/html'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(name||'site').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.html';a.click();toast('HTML téléchargé','success')}
 function delSite(id){if(!confirm('Supprimer ce site ?'))return;S.sites=S.sites.filter(s=>s.id!==id);save();toast('Supprimé','success');if(S.page==='sites')renderSites();else renderGenerate()}
 function esc(s){return(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}
