@@ -8,67 +8,68 @@ Règles ABSOLUES :
 - Le HTML doit être complet et autonome (CSS et JS inline dans le fichier)
 - Design moderne, épuré, espacements généreux, typographie soignée
 - Responsive mobile-first obligatoire avec menu hamburger
-- Animations subtiles au scroll (Intersection Observer)
+- PAS d'animations fade-up au scroll (Intersection Observer) — les éléments seraient invisibles. Utilise uniquement des transitions CSS hover
+- Tous les éléments doivent être visibles directement sans JS
 - Polices Google Fonts incluses via CDN
-- Images : utilise les URLs fournies. Si aucune image dispo, utilise des gradients élégants
+- Si tu utilises des images, mets-les dans des balises img avec l'URL dans src
 - Couleurs : utilise les couleurs extraites du business si disponibles
 - Contenu 100% réel basé sur les données, jamais de lorem ipsum
-- Le site doit être complet avec TOUTES les sections jusqu'au footer inclus
-- ANIMATIONS : utilise uniquement des transitions CSS hover, PAS d'Intersection Observer ni de fade-up au scroll car les éléments deviendraient invisibles. Tous les éléments doivent être visibles directement sans JS
-- Si tu utilises des images, mets-les dans des balises <img> avec l'URL directement dans src=""
-- Pour les vidéos, utilise <video src="URL" autoplay muted loop playsinline>`;
+- Le site doit être COMPLET avec TOUTES les sections jusqu'au footer et jusqu'au tag html fermant`;
 
-async function generateSite(businessData, sector, options = [], prompt = '', extraImages = []) {
-  // Construire les instructions fonctionnalités
+async function generateSite(businessData, sector, options, prompt, extraImages) {
+  options = options || [];
+  prompt = prompt || '';
+  extraImages = extraImages || [];
+
   const featureMap = {
-    booking: 'RÉSERVATION EN LIGNE : Intègre un système de réservation avec Google Agenda. Bouton "Prendre rendez-vous" qui ouvre https://calendar.google.com/calendar/appointments. Affiche les créneaux disponibles de façon visuelle.',
-    devis: 'DEVIS AUTOMATIQUE : Formulaire interactif JS avec sélection du type de prestation, description du besoin, niveau d\'urgence. Calcul automatique d\'une fourchette de prix en temps réel selon les choix. Bouton envoi par email.',
-    acompte: 'PAIEMENT ACOMPTE : Section avec bouton de paiement d\'acompte via lien Stripe ou SumUp. Explique que le paiement de X% confirme le rendez-vous.',
-    whatsapp: 'BOUTON WHATSAPP FLOTTANT : Bouton vert fixe en bas à droite avec icône WhatsApp SVG. Lien wa.me avec le numéro de téléphone. Toujours visible en scrollant.',
-    urgence: 'MODE URGENCE 24h/7j : Bandeau rouge en haut de page avec numéro d\'urgence. Section dédiée avec délai d\'intervention. Badge "Disponible maintenant" animé.',
-    popup: 'POPUP OFFRE BIENVENUE : Popup élégante qui apparaît après 3 secondes avec une offre de bienvenue (ex: -10% sur le 1er RDV). Bouton fermer + bouton CTA.',
-    fidelite: 'PROGRAMME FIDÉLITÉ : Section carte de fidélité digitale avec visuel. Ex: 10e soin offert. Formulaire d\'inscription email pour rejoindre le programme.',
-    before_after: 'AVANT / APRÈS : Slider comparatif interactif avec poignée glissante. Plusieurs exemples de réalisations avant/après. JS natif, pas de librairie externe.',
-    chatbot: 'CHATBOT FAQ : Bulle de chat fixe en bas à droite. Clic = fenêtre avec questions fréquentes prédéfinies et réponses automatiques. Pas d\'IA, juste FAQ interactive.',
-    map: 'CARTE & ITINÉRAIRE : Iframe Google Maps intégrée avec l\'adresse du business. Bouton "Obtenir l\'itinéraire" en dessous.',
-    newsletter: 'CAPTURE EMAIL : Section avec formulaire d\'inscription newsletter. Design accrocheur avec promesse de valeur (ex: "Reçois nos offres exclusives"). Champ email + bouton.',
-    multilingue: 'SITE BILINGUE FR/EN : Toggle FR/EN en haut à droite. JS qui switche tous les textes. Version anglaise complète et professionnelle.',
+    booking: 'RESERVATION EN LIGNE : Bouton "Prendre rendez-vous" qui ouvre https://calendar.google.com/calendar/appointments. Section avec calendrier visuel.',
+    devis: 'DEVIS AUTOMATIQUE : Formulaire JS interactif avec type de prestation, description, urgence. Calcul automatique fourchette de prix en temps réel. Bouton envoi email.',
+    acompte: 'PAIEMENT ACOMPTE : Section avec bouton de paiement acompte via lien Stripe ou SumUp. Expliquer que X% confirme le RDV.',
+    whatsapp: 'BOUTON WHATSAPP FLOTTANT : Bouton vert fixe bas droite avec icone WhatsApp SVG. Lien wa.me avec le numero. Toujours visible.',
+    urgence: 'URGENCE 24h/7j : Bandeau rouge en haut avec numero urgence. Section delai intervention. Badge "Disponible maintenant" anime.',
+    popup: 'POPUP OFFRE : Popup elegante apres 3s avec offre bienvenue (-10% 1er RDV). Bouton fermer + CTA.',
+    fidelite: 'FIDELITE : Section carte fidelite digitale. Ex: 10e soin offert. Formulaire inscription email.',
+    before_after: 'AVANT APRES : Slider comparatif interactif avec poignee glissante. JS natif.',
+    chatbot: 'CHATBOT FAQ : Bulle chat fixe bas droite. Clic = fenetre FAQ interactive. Pas d IA, juste questions/reponses predefinies.',
+    map: 'CARTE : Iframe Google Maps avec adresse. Bouton Obtenir itineraire.',
+    newsletter: 'NEWSLETTER : Formulaire inscription email avec promesse valeur.',
+    multilingue: 'BILINGUE FR/EN : Toggle langue haut droite. JS switch tous les textes.',
   };
 
-  const featuresInstructions = options.length > 0
-    ? '\n\nFONCTIONNALITÉS OBLIGATOIRES À INTÉGRER :\n' + options.map(o => featureMap[o] ? '• ' + featureMap[o] : '').filter(Boolean).join('\n\n')
-    : '';
+  let featuresText = '';
+  if (options.length > 0) {
+    const feats = options.map(function(o) { return featureMap[o] ? '- ' + featureMap[o] : ''; }).filter(Boolean);
+    if (feats.length > 0) featuresText = '\n\nFONCTIONNALITES OBLIGATOIRES :\n' + feats.join('\n\n');
+  }
 
-  const userPrompt = `Génère un site web complet et professionnel.
+  let imagesText = '';
+  const allImages = extraImages.length > 0 ? extraImages : (businessData.images || []);
+  if (allImages.length > 0) {
+    imagesText = '\n\nPHOTOS A UTILISER OBLIGATOIREMENT dans img src (hero, galerie, a propos) :\n';
+    imagesText += allImages.slice(0, 8).map(function(url, i) { return 'Photo ' + (i+1) + ': ' + url; }).join('\n');
+  }
 
-${prompt ? `INSTRUCTIONS PRIORITAIRES DU CLIENT :\n${prompt}\n` : ''}
-DONNÉES DU BUSINESS EXTRAITES :
-${JSON.stringify(businessData, null, 2)}
+  let promptText = prompt ? '\nINSTRUCTIONS PRIORITAIRES DU CLIENT :\n' + prompt + '\n' : '';
 
-SECTEUR : ${sector || businessData.sector || 'général'}
-${featuresInstructions}
-
-STRUCTURE OBLIGATOIRE DU SITE :
-1. Header avec navigation sticky + menu hamburger mobile
-2. Hero section impactante avec CTA principal
-3. Services / Prestations avec prix si disponibles
-4. Section À propos / Histoire
-5. ${options.includes('before_after') ? 'Slider avant/après' : 'Galerie ou section visuels'}
-6. Avis clients / Témoignages (réels si dispo, sinon cohérents avec le secteur)
-7. ${options.includes('booking') || options.includes('devis') ? 'Section réservation/devis (voir fonctionnalités)' : 'Section contact'}
-8. Footer complet avec infos, réseaux sociaux, horaires
-
-IMPORTANT :
-- Utilise les images disponibles dans les données si présentes
-- Utilise les couleurs de la marque si disponibles
-- Le site doit être COMPLET jusqu'au </html> final
-- Qualité professionnelle, le client paie pour ce site
-
-Retourne UNIQUEMENT le HTML complet.`;
+  const userPrompt = 'Genere un site web complet et professionnel.\n'
+    + promptText
+    + '\nDONNEES DU BUSINESS :\n' + JSON.stringify(businessData, null, 2)
+    + '\n\nSECTEUR : ' + (sector || businessData.sector || 'general')
+    + featuresText
+    + imagesText
+    + '\n\nSTRUCTURE OBLIGATOIRE :\n'
+    + '1. Header navigation sticky + hamburger mobile\n'
+    + '2. Hero section impactante avec CTA\n'
+    + '3. Services / Prestations avec prix\n'
+    + '4. A propos / Histoire\n'
+    + '5. ' + (options.indexOf('before_after') !== -1 ? 'Slider avant/apres' : 'Galerie photos') + '\n'
+    + '6. Avis clients / Temoignages\n'
+    + '7. ' + (options.indexOf('booking') !== -1 || options.indexOf('devis') !== -1 ? 'Section reservation/devis' : 'Contact') + '\n'
+    + '8. Footer complet avec infos, reseaux sociaux, horaires\n'
+    + '\nLE SITE DOIT ETRE 100% COMPLET jusqu\'au </html> final. Qualite professionnelle.';
 
   const html = await callClaude(SYSTEM_PROMPT, userPrompt, 16000);
 
-  // Nettoyer et vérifier
   let clean = html.trim();
   clean = clean.replace(/^```html\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
 
@@ -76,11 +77,10 @@ Retourne UNIQUEMENT le HTML complet.`;
   if (start > 0) clean = clean.substring(start);
 
   if (!clean.includes('<!DOCTYPE') && !clean.includes('<html')) {
-    throw new Error('Claude n\'a pas retourné de HTML valide');
+    throw new Error('Claude n\'a pas retourne de HTML valide');
   }
 
   return clean;
 }
 
 module.exports = { generateSite };
-// patch already applied above
