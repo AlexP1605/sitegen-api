@@ -327,7 +327,7 @@ function renderGenerate(){
       <div class="step-list" id="stepList"></div>
     </div>
   </div>
-  ${S.sites.length>0?`<div><div class="sites-header"><h3>Derniers sites</h3><button class="btn btn-ghost btn-sm" onclick="showPage('sites')">Voir tout →</button></div><div class="sites-grid">${S.sites.slice(0,3).map(siteCard).join('')}</div></div>`:''}`;
+  `+(S.sites.length>0?'<div><div class="sites-header"><h3>Derniers sites</h3><button class="btn btn-ghost btn-sm" onclick="showPage(\'sites\')">Voir tout →</button></div><div class="sites-grid">'+S.sites.slice(0,3).map(siteCard).join('')+'</div></div>':'');
 }
 
 function toggleOption(id,el){
