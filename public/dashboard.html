@@ -82,7 +82,7 @@ select option{background:var(--bg3)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .kard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;transition:border .15s}
 .kard:hover{border-color:var(--border2)}
-.kprev{height:120px;background:var(--bg3);position:relative;padding:10px;display:flex;flex-direction:column;gap:5px;opacity:.65}
+.kprev{height:120px;background:var(--bg3);position:relative;overflow:hidden}
 .mb{height:5px;border-radius:3px;background:var(--border2)}
 .mb.s{width:35%}.mb.m{width:60%}.mb.a{background:var(--accent);width:28%}
 .mr{display:flex;gap:5px}
@@ -96,6 +96,19 @@ select option{background:var(--bg3)}
 .el{display:grid;grid-template-columns:1fr 360px;gap:16px;height:calc(100vh - 112px)}
 .eleft{display:flex;flex-direction:column;gap:14px;overflow-y:auto}
 .eright{display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.prog-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:14px;display:none}
+.prog-panel.show{display:block}
+.prog-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px}
+.prog-step{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 0;color:var(--text3);border-bottom:1px solid var(--border)}
+.prog-step:last-child{border-bottom:none}
+.prog-step.done{color:var(--success)}
+.prog-step.active{color:var(--text);font-weight:500}
+.prog-step.wait{color:var(--text3)}
+.prog-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--border)}
+.prog-step.done .prog-dot{background:var(--success)}
+.prog-step.active .prog-dot{background:var(--orange);animation:pulse 1.2s infinite}
+.prog-bar2{height:3px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:10px}
+.prog-fill2{height:100%;background:var(--orange);border-radius:3px;transition:width .4s}
 .stitle{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
 .cbox{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);display:flex;flex-direction:column;height:360px}
 .cmsgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px}
@@ -368,6 +381,7 @@ function pGenerate() {
   }
   
   document.getElementById('pg').innerHTML = html;
+  loadCardPreviews();
 }
 
 function addU() { if(D.urls.length>=5){toast('Max 5 URLs','e');return;} D.urls.push(''); pGenerate(); }
@@ -464,15 +478,34 @@ async function doScrape() {
   } catch(err) { toast('Erreur: '+err.message,'e'); }
 }
 
+// IFRAME LOADER - loads site previews into cards
+function loadCardPreviews() {
+  setTimeout(function() {
+    document.querySelectorAll('iframe[data-site-id]').forEach(function(iframe) {
+      const id = iframe.getAttribute('data-site-id');
+      const s = D.sites.find(function(x){return x.id===id;});
+      if (s && s.html && !iframe.getAttribute('data-loaded')) {
+        iframe.setAttribute('data-loaded','1');
+        try {
+          iframe.contentDocument.open();
+          iframe.contentDocument.write(s.html);
+          iframe.contentDocument.close();
+        } catch(e) {}
+      }
+    });
+  }, 200);
+}
+
 // SITE CARD
 function kard(site) {
   const scol = {'draft':'var(--text3)','review':'var(--orange)','delivered':'var(--accent)','sold':'var(--success)'}[site.status||'draft'];
   const slbl = {'draft':'Brouillon','review':'En révision','delivered':'Livré','sold':'Vendu'}[site.status||'draft'];
   let h = '<div class="kard">';
-  h += '<div class="kprev">';
-  h += '<div class="mb a"></div><div class="mb m"></div><div class="mb s"></div>';
-  h += '<div style="height:5px"></div><div class="mr"><div class="mbl"></div><div class="mbl"></div></div>';
-  h += '<div style="height:3px"></div><div class="mb m"></div><div class="mb s"></div>';
+  h += '<div class="kprev" style="padding:0;overflow:hidden;cursor:pointer" onclick="prev(\''+site.id+'\')">'; 
+  h += '<div style="width:100%;height:100%;position:relative;overflow:hidden">';
+  h += '<iframe data-site-id="'+site.id+'" style="width:1280px;height:800px;border:none;transform:scale(0.195);transform-origin:top left;pointer-events:none" sandbox="allow-scripts"></iframe>';
+  h += '<div style="position:absolute;inset:0"></div>';
+  h += '</div>';
   h += '<div class="kdot" style="background:' + scol + '"></div></div>';
   h += '<div class="kinfo">';
   h += '<div class="kname">' + (site.business_name||'Sans nom') + '</div>';
@@ -541,6 +574,7 @@ function pSites() {
   }
   h += '</div>';
   document.getElementById('pg').innerHTML = h;
+  loadCardPreviews();
 }
 
 function filtS(q) {
@@ -590,6 +624,20 @@ function pEdit() {
   
   // Domain instructions
   h += '<div class="card">';
+  h += '<div class="stitle">📥 Enrichir les données</div>';
+  h += '<p style="font-size:12px;color:var(--text2);margin-bottom:10px">Ajoute de nouvelles sources pour enrichir ou regénérer le site avec plus d\'infos.</p>';
+  h += '<div style="display:flex;flex-direction:column;gap:7px;margin-bottom:10px" id="esrcs">';
+  const srcs = site.source_urls||site.urls||[];
+  srcs.forEach(function(u,i) {
+    h += '<div style="display:flex;gap:6px;align-items:center"><div style="font-size:11px;color:var(--text3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+u+'</div></div>';
+  });
+  if (srcs.length === 0) h += '<div style="font-size:12px;color:var(--text3)">Aucune source enregistrée</div>';
+  h += '</div>';
+  h += '<div style="display:flex;gap:6px;margin-bottom:8px"><input type="url" id="newsrc" placeholder="https://instagram.com/..." style="flex:1"><button class="btn bo sm" onclick="addSource(\''+site.id+'\')">+ Ajouter</button></div>';
+  h += '<div style="display:flex;gap:6px"><button class="btn bg sm" onclick="scrapeAndEnrich(\''+site.id+'\')">🔍 Scraper les sources</button><button class="btn bg sm" onclick="scrapeAndRegen(\''+site.id+'\')">⚡ Scraper + Regénérer</button></div>';
+  h += '</div>';
+  
+  h += '<div class="card">';
   h += '<div class="stitle">Déploiement o2switch</div>';
   h += '<code style="background:var(--bg3);padding:10px;border-radius:7px;display:block;font-size:11px;line-height:1.9;border:1px solid var(--border);color:var(--text2)">';
   h += '1. cPanel → Sous-domaines → Créer ' + (site.domain||'client.tondomaine.fr') + '<br>';
@@ -601,6 +649,7 @@ function pEdit() {
   
   // RIGHT - Chat
   h += '<div class="eright">';
+  h += '<div id="progpanel" class="prog-panel"><div class="prog-title" id="progtitle">Progression</div><div id="progsteps"></div><div class="prog-bar2"><div class="prog-fill2" id="progfill" style="width:0%"></div></div></div>';
   h += '<div class="stitle" style="margin-bottom:0">💬 Modifier avec l\'IA</div>';
   h += '<div class="cbox">';
   h += '<div class="cmsgs" id="cms"><div class="cm a">Bonjour ! Je peux modifier le site de <strong>' + (site.business_name||'ce client') + '</strong>. Dis-moi ce que tu veux changer ! 🎨</div></div>';
@@ -633,11 +682,41 @@ function saveEdit(id) {
 async function regen(id) {
   const s = D.sites.find(function(x){return x.id===id;});
   if (!s || !confirm('Regénérer entièrement le site ?')) return;
-  toast('Regénération…','i');
+  
+  const RSTEPS = ['Connexion API…','📸 Scraping sources…','🔍 Extraction données…','✨ Génération avec Claude (1-2 min)…','💾 Finalisation…'];
+  
+  function showProg(n, title) {
+    const panel = document.getElementById('progpanel');
+    const fill = document.getElementById('progfill');
+    const steps = document.getElementById('progsteps');
+    const ptitle = document.getElementById('progtitle');
+    if (!panel) return;
+    panel.classList.add('show');
+    if (ptitle) ptitle.textContent = title||'Regénération en cours…';
+    if (fill) fill.style.width = Math.round(n/RSTEPS.length*100)+'%';
+    if (steps) {
+      steps.innerHTML = RSTEPS.map(function(s,i) {
+        return '<div class="prog-step '+(i<n?'done':i===n?'active':'wait')+'"><div class="prog-dot"></div>'+s+(i<n?' ✓':'')+'</div>';
+      }).join('');
+    }
+  }
+  
+  showProg(0, 'Regénération en cours…');
   try {
-    const res = await api('/api/generate','POST',{urls:s.urls,sector:s.sector,options:s.options,business_data:s.business_data});
-    s.html = res.html; sv(); toast('Regénéré !','s'); pEdit();
-  } catch(err) { toast('Erreur: '+err.message,'e'); }
+    await new Promise(function(r){setTimeout(r,300);}); showProg(1);
+    await new Promise(function(r){setTimeout(r,400);}); showProg(2);
+    const res = await api('/api/generate','POST',{urls:s.urls,sector:s.sector,options:s.options,business_data:s.business_data,prompt:s.last_prompt||''});
+    showProg(3); await new Promise(function(r){setTimeout(r,300);}); showProg(4);
+    s.html = res.html; sv();
+    const panel = document.getElementById('progpanel');
+    if (panel) { panel.classList.remove('show'); }
+    toast('Site regénéré !','s');
+    pEdit();
+  } catch(err) {
+    toast('Erreur: '+err.message,'e');
+    const panel = document.getElementById('progpanel');
+    if (panel) panel.classList.remove('show');
+  }
 }
 
 function addChatMsg(text, type) {
@@ -658,9 +737,31 @@ async function sendChat(id) {
   input.value = '';
   const s = D.sites.find(function(x){return x.id===id;});
   if (!s) return;
+  
+  const CSTEPS = ['Envoi de la demande…','🤖 Claude analyse le site…','✏️ Modification en cours…','💾 Sauvegarde…'];
+  
+  function showCProg(n) {
+    const panel = document.getElementById('progpanel');
+    const fill = document.getElementById('progfill');
+    const steps = document.getElementById('progsteps');
+    const ptitle = document.getElementById('progtitle');
+    if (!panel) return;
+    panel.classList.add('show');
+    if (ptitle) ptitle.textContent = 'Modification : "'+msg.substring(0,40)+(msg.length>40?'…':'')+'"';
+    if (fill) fill.style.width = Math.round(n/CSTEPS.length*100)+'%';
+    if (steps) {
+      steps.innerHTML = CSTEPS.map(function(s,i) {
+        return '<div class="prog-step '+(i<n?'done':i===n?'active':'wait')+'"><div class="prog-dot"></div>'+s+(i<n?' ✓':'')+'</div>';
+      }).join('');
+    }
+  }
+  
   addChatMsg(msg, 'u');
-  const loading = addChatMsg('Modification en cours…', 'a');
+  showCProg(0);
+  
   try {
+    await new Promise(function(r){setTimeout(r,200);}); showCProg(1);
+    
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {'Content-Type':'application/json','x-api-key':D.key,'anthropic-version':'2023-06-01'},
@@ -671,17 +772,29 @@ async function sendChat(id) {
         messages: [{role:'user',content:'HTML actuel:\n\n'+s.html+'\n\nInstruction: '+msg+'\n\nRetourne le HTML complet modifié.'}]
       })
     });
+    
+    showCProg(2);
     const data = await res.json();
     const newHtml = data.content&&data.content[0]&&data.content[0].text||'';
+    
+    showCProg(3);
+    await new Promise(function(r){setTimeout(r,200);});
+    
     if (newHtml.includes('<!DOCTYPE')||newHtml.includes('<html')) {
       s.html = newHtml; sv();
-      if (loading) loading.innerHTML = '✅ Modifié ! Clique Aperçu pour voir.';
+      addChatMsg('✅ Modifié ! Clique sur 👁 Aperçu pour voir le résultat.', 'a');
       toast('Site modifié','s');
     } else {
-      if (loading) loading.innerHTML = 'Modification appliquée.';
+      addChatMsg('Modification appliquée.', 'a');
     }
+    
+    const panel = document.getElementById('progpanel');
+    if (panel) panel.classList.remove('show');
+    
   } catch(err) {
-    if (loading) loading.innerHTML = 'Erreur: '+err.message;
+    addChatMsg('Erreur: '+err.message, 'a');
+    const panel = document.getElementById('progpanel');
+    if (panel) panel.classList.remove('show');
   }
 }
 
@@ -713,6 +826,94 @@ function confSale(id) {
   s.status = 'sold'; sv(); closeMo();
   toast('Vente de '+fm(amount)+' enregistrée !','s');
   pEdit();
+}
+
+// SOURCE MANAGEMENT
+function addSource(id) {
+  const s = D.sites.find(function(x){return x.id===id;});
+  if (!s) return;
+  const url = document.getElementById('newsrc').value.trim();
+  if (!url) { toast('Entre une URL','e'); return; }
+  s.source_urls = s.source_urls || s.urls || [];
+  s.source_urls.push(url);
+  s.urls = s.source_urls;
+  sv(); toast('Source ajoutée','s');
+  document.getElementById('newsrc').value = '';
+  pEdit();
+}
+
+async function scrapeAndEnrich(id) {
+  const s = D.sites.find(function(x){return x.id===id;});
+  if (!s) return;
+  const urls = s.source_urls||s.urls||[];
+  if (!urls.length) { toast('Ajoute des sources d\'abord','e'); return; }
+  
+  const panel = document.getElementById('progpanel');
+  const ptitle = document.getElementById('progtitle');
+  const psteps = document.getElementById('progsteps');
+  const pfill = document.getElementById('progfill');
+  if (panel) panel.classList.add('show');
+  if (ptitle) ptitle.textContent = 'Scraping des sources…';
+  if (pfill) pfill.style.width = '30%';
+  if (psteps) psteps.innerHTML = '<div class="prog-step active"><div class="prog-dot"></div>📸 Scraping Instagram & sources…</div>';
+  
+  try {
+    const r = await api('/api/scrape','POST',{urls:urls});
+    s.business_data = Object.assign({},s.business_data||{},r.data);
+    if (r.data.images && r.data.images.length) {
+      s.business_data.images = [...new Set([...(r.data.images||[]),...(s.business_data.images||[])])].slice(0,10);
+    }
+    sv();
+    if (pfill) pfill.style.width = '100%';
+    if (psteps) psteps.innerHTML = '<div class="prog-step done"><div class="prog-dot"></div>✓ Données enrichies !</div>';
+    setTimeout(function(){ if(panel) panel.classList.remove('show'); }, 2000);
+    toast('Données enrichies ! Regénère pour appliquer.','s');
+  } catch(err) {
+    toast('Erreur: '+err.message,'e');
+    if (panel) panel.classList.remove('show');
+  }
+}
+
+async function scrapeAndRegen(id) {
+  const s = D.sites.find(function(x){return x.id===id;});
+  if (!s) return;
+  const urls = s.source_urls||s.urls||[];
+  if (!urls.length) { toast('Ajoute des sources d\'abord','e'); return; }
+  
+  const STEPS2 = ['📸 Scraping sources…','🔍 Extraction données…','✨ Génération avec Claude…','💾 Finalisation…'];
+  function sp(n) {
+    const panel = document.getElementById('progpanel');
+    const pfill = document.getElementById('progfill');
+    const psteps = document.getElementById('progsteps');
+    const ptitle = document.getElementById('progtitle');
+    if (!panel) return;
+    panel.classList.add('show');
+    if (ptitle) ptitle.textContent = 'Scraping + Regénération…';
+    if (pfill) pfill.style.width = Math.round(n/STEPS2.length*100)+'%';
+    if (psteps) psteps.innerHTML = STEPS2.map(function(st,i){
+      return '<div class="prog-step '+(i<n?'done':i===n?'active':'wait')+'"><div class="prog-dot"></div>'+st+(i<n?' ✓':'')+'</div>';
+    }).join('');
+  }
+  
+  sp(0);
+  try {
+    const sr = await api('/api/scrape','POST',{urls:urls});
+    sp(1);
+    const merged = Object.assign({},s.business_data||{},sr.data);
+    if (sr.data.images) merged.images = [...new Set([...(sr.data.images||[]),...(s.business_data&&s.business_data.images||[])])].slice(0,10);
+    sp(2);
+    const res = await api('/api/generate','POST',{business_data:merged,sector:s.sector,options:s.options,prompt:s.last_prompt||''});
+    sp(3); await new Promise(function(r){setTimeout(r,300);});
+    s.html = res.html; s.business_data = merged; sv();
+    const panel = document.getElementById('progpanel');
+    if (panel) panel.classList.remove('show');
+    toast('Site regénéré avec nouvelles données !','s');
+    pEdit();
+  } catch(err) {
+    toast('Erreur: '+err.message,'e');
+    const panel = document.getElementById('progpanel');
+    if (panel) panel.classList.remove('show');
+  }
 }
 
 // PAGE SCRAPE
